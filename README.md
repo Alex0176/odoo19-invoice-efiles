@@ -1,7 +1,6 @@
 # Odoo 19 Invoice E-Files
 
-Two modules that automatically attach two additional electronic invoice
-files to every customer invoice/credit note sent from Odoo 19:
+Three modules for Odoo 19 Community:
 
 1. **ebInterface 6.1** (Austria) - a custom XML generator, since no Odoo
    core module or OCA repo supports Austria's native e-invoice format for
@@ -11,6 +10,14 @@ files to every customer invoice/credit note sent from Odoo 19:
    just forces it onto every send instead of it being a per-customer
    opt-in, and fixes two gaps in core that stop it from actually working
    outside France/Germany.
+3. **Automatic submission to e-Rechnung.gv.at** - the Austrian government's
+   B2G e-invoicing webservice, for customers who require it (public sector
+   recipients, mainly).
+
+The first two attach automatically to every customer invoice/credit note
+sent from Odoo; the third additionally submits the ebInterface XML
+straight to the government webservice for the specific customers it's
+enabled for.
 
 ## Modules
 
@@ -69,6 +76,52 @@ Depends on `l10n_at_ebinterface` and Odoo core's `account_edi_ubl_cii`.
     changes, which bulk-migrated invoices never triggered). Filled in
     with the company's own bank account when empty.
 
+### `l10n_at_erechnung_gv_at`
+
+Depends on `l10n_at_ebinterface` and `account_invoice_zugferd_ebinterface_auto`.
+Submits the ebInterface XML to the [e-Rechnung.gv.at webservice](https://www.erechnung.gv.at/erb/en_GB/tec_delivery_ws)
+(`deliverInvoice` SOAP operation, WSDL 2.0 - `data/erb-in-invoice-201.wsdl`,
+vendored locally rather than fetched at runtime) via [`zeep`](https://pypi.org/project/zeep/),
+authenticated with WS-Security UsernameToken over the Unternehmensserviceportal (USP).
+
+**Settings (Accounting settings > e-Rechnung.gv.at)**: USP webservice
+username/password, and a Test/Produktiv environment dropdown -
+`https://txm.portal.at/at.gv.bmf.erb.test/V2` vs. `https://txm.portal.at/at.gv.bmf.erb/V2`.
+
+**Per customer (Contacts, Sales & Purchase tab, Austrian customers only)**:
+a "Automatisch an e-Rechnung.gv.at senden" checkbox, which a
+`@api.constrains` refuses to enable unless the customer's country is
+Austria *and* all three of these (added by `l10n_at_ebinterface`) are
+filled in:
+
+| Field | ebInterface XML path |
+|---|---|
+| Lieferantennummer | `Biller/InvoiceRecipientsBillerID` |
+| Einkäufergruppe (Filialnummer) | combined with Auftragsreferenz as `Biller`'s Order... |
+| Auftragsreferenz | ...`InvoiceRecipient/OrderReference/OrderID` = `"<EKG>:<Auftragsreferenz>"` |
+
+That `EKG:Referenz` composition (and the alternative pure-10-digit-order-number
+or pure-3-character-EKG forms) is specified in BRZ's official
+["Leitfaden Rechnungsstellung und -einbringung"](https://www.erechnung.gv.at/files/Leitfaden%20Rechnungsstellung%20und%20-einbringung%20V%202_7%2020240913.pdf),
+§8.3.
+
+**Sending**: hooks `account.move.send._hook_if_success` - when a customer
+invoice with `l10n_at_erb_auto_send` enabled is sent (email, print, or
+otherwise), it's also submitted automatically. A manual "An
+e-Rechnung.gv.at senden" button and a status badge (Nicht gesendet /
+Übermittelt / Fehler) are on the invoice form for enabled customers, for
+resending or checking what happened.
+
+The WSDL was fetched from the official source
+(`https://www.erechnung.gv.at/files/ws/erb-in-invoice-201.wsdl`) and its
+request/response structure verified via `zeep`'s dry-run message
+construction (`Client.create_message`) - the generated SOAP envelope,
+WS-Security header and base64-encoded invoice payload were confirmed to
+match the documented structure exactly. Submission to the live BRZ test
+endpoint has *not* been exercised end-to-end (no test USP credentials
+were available) - test with real credentials before relying on this in
+production.
+
 ## What ZUGFeRD/ebInterface generation will refuse to send, correctly
 
 Both are strict, schema-validated formats. Odoo's own CII exporter will
@@ -88,6 +141,9 @@ working around in the generator.
 
 ```
 addons_path = .../invoice-efiles
+pip install zeep
 ```
-then install `account_invoice_zugferd_ebinterface_auto` (it pulls in
-`l10n_at_ebinterface` as a dependency).
+then install `account_invoice_zugferd_ebinterface_auto` for ZUGFeRD +
+ebInterface on every send, and/or `l10n_at_erechnung_gv_at` for the
+government webservice submission (both pull in `l10n_at_ebinterface` as
+a dependency).

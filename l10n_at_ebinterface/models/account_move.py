@@ -51,6 +51,8 @@ class AccountMove(models.Model):
         etree.SubElement(root, "InvoiceNumber").text = self.name or ""
         etree.SubElement(root, "InvoiceDate").text = str(self.invoice_date or self.date)
 
+        partner = self.partner_id.commercial_partner_id
+
         biller = etree.SubElement(root, "Biller")
         etree.SubElement(biller, "VATIdentificationNumber").text = self.company_id.vat or "ATU00000000"
         biller_address = etree.SubElement(biller, "Address")
@@ -62,10 +64,15 @@ class AccountMove(models.Model):
         biller_country = etree.SubElement(biller_address, "Country")
         biller_country.set("CountryCode", self.company_id.country_id.code or "AT")
         biller_country.text = self.company_id.country_id.name or "Österreich"
+        if partner.l10n_at_ebi_supplier_number:
+            etree.SubElement(biller, "InvoiceRecipientsBillerID").text = partner.l10n_at_ebi_supplier_number.strip()
 
         recipient = etree.SubElement(root, "InvoiceRecipient")
-        partner = self.partner_id.commercial_partner_id
         etree.SubElement(recipient, "VATIdentificationNumber").text = partner.vat or "ATU00000000"
+        order_id = partner._l10n_at_ebi_order_id()
+        if order_id:
+            order_reference = etree.SubElement(recipient, "OrderReference")
+            etree.SubElement(order_reference, "OrderID").text = order_id
         recipient_address = etree.SubElement(recipient, "Address")
         etree.SubElement(recipient_address, "Name").text = partner.name or "-"
         if partner.street:

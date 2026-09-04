@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <record id="view_move_form" model="ir.ui.view">
+        <field name="name">account.move.form.inherit.l10n_at_erechnung_gv_at</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_move_form" />
+        <field name="arch" type="xml">
+            <xpath expr="//button[@name='action_register_payment'][1]" position="before">
+                <button name="action_l10n_at_erb_submit"
+                        type="object"
+                        string="An e-Rechnung.gv.at senden"
+                        invisible="state != 'posted' or move_type not in ('out_invoice', 'out_refund') or not l10n_at_erb_auto_send_partner or l10n_at_erb_state == 'sent'"
+                        groups="account.group_account_invoice" />
+            </xpath>
+            <xpath expr="//field[@name='state'][1]" position="after">
+                <field name="l10n_at_erb_auto_send_partner" invisible="1" />
+                <field name="l10n_at_erb_state"
+                       widget="badge"
+                       decoration-success="l10n_at_erb_state == 'sent'"
+                       decoration-danger="l10n_at_erb_state == 'error'"
+                       invisible="not l10n_at_erb_auto_send_partner"
+                       readonly="1" />
+            </xpath>
+        </field>
+    </record>
+</odoo>

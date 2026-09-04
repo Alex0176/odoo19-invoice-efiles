@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<odoo>
+    <record id="view_partner_property_form" model="ir.ui.view">
+        <field name="name">res.partner.property.form.inherit.l10n_at_erechnung_gv_at</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="account.view_partner_property_form" />
+        <field name="arch" type="xml">
+            <xpath expr="//group[@id='invoice_send_settings']" position="inside">
+                <label for="l10n_at_erb_auto_send" string="e-Rechnung.gv.at" invisible="country_code != 'AT'" />
+                <div invisible="country_code != 'AT'">
+                    <field name="l10n_at_erb_auto_send" />
+                    <label for="l10n_at_erb_auto_send" string="Automatisch an e-Rechnung.gv.at senden" />
+                </div>
+                <label for="l10n_at_ebi_supplier_number" string="Lieferantennummer" invisible="country_code != 'AT'" />
+                <field name="l10n_at_ebi_supplier_number" nolabel="1" invisible="country_code != 'AT'" />
+                <label for="l10n_at_ebi_purchasing_group" string="Einkäufergruppe (Filialnummer)" invisible="country_code != 'AT'" />
+                <field name="l10n_at_ebi_purchasing_group" nolabel="1" invisible="country_code != 'AT'" />
+                <label for="l10n_at_ebi_order_reference" string="Auftragsreferenz" invisible="country_code != 'AT'" />
+                <field name="l10n_at_ebi_order_reference" nolabel="1" invisible="country_code != 'AT'" />
+            </xpath>
+        </field>
+    </record>
+</odoo>
