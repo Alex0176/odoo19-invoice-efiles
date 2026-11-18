@@ -2,7 +2,8 @@ import io
 import logging
 
 from odoo import api, fields, models
-from odoo.tools.pdf import OdooPdfFileReader, OdooPdfFileWriter
+from odoo.tools.pdf import (
+    DictionaryObject, NameObject, NumberObject, OdooPdfFileReader, OdooPdfFileWriter)
 
 _logger = logging.getLogger(__name__)
 
@@ -76,6 +77,14 @@ class AccountMoveSend(models.AbstractModel):
         if writer.is_pdfa:
             reader_buffer.close()
             return
+        # wkhtmltopdf writes no outline (bookmark) tree when the document has no headings, but
+        # OdooPdfFileWriter.convert_to_pdfa() expects /Outlines in the catalog: add an empty one.
+        # The names come from odoo.tools.pdf, which hides the pypdf / PyPDF2 difference.
+        if '/Outlines' not in writer._root_object:
+            writer._root_object[NameObject('/Outlines')] = writer._addObject(DictionaryObject({
+                NameObject('/Type'): NameObject('/Outlines'),
+                NameObject('/Count'): NumberObject(0),
+            }))
         try:
             writer.convert_to_pdfa()
         except Exception:
